@@ -29,9 +29,31 @@ function readStorage(): Record<string, EntryRow[]> {
 
 let cache: Record<string, EntryRow[]> | null = null
 
+// 示例数据后续新增过缺项/异常场景：老缓存里没有这些行，按业务编号幂等补入，用户已改过的行不动。
+function mergeSeedRows(saved: Record<string, EntryRow[]>): Record<string, EntryRow[]> {
+  const merged = clone(saved)
+  const mergeBy = (key: string, identity: (row: EntryRow) => string) => {
+    const seeds = SEED_ROWS[key] ?? []
+    const existing = merged[key] ?? []
+    const known = new Set(existing.map(identity))
+    const additions = seeds.filter((row) => !known.has(identity(row)))
+    if (additions.length > 0) {
+      merged[key] = [...existing, ...additions]
+    }
+  }
+  mergeBy('leakdetect', (row) => String(row.探漏编号 ?? row.id))
+  mergeBy('emergencyrepair', (row) =>
+    String(row.来源探漏 ?? row.抢修编号 ?? row.id),
+  )
+  return merged
+}
+
 export function allRows(): Record<string, EntryRow[]> {
   if (cache === null) {
-    cache = readStorage()
+    cache = mergeSeedRows(readStorage())
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cache))
+    }
   }
   return cache
 }

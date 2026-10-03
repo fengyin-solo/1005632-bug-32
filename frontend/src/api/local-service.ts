@@ -13,13 +13,15 @@ export function moduleMeta(key: string): ModuleMeta {
   return meta
 }
 
-export function filterRows(rows: EntryRow[], filters: Record<string, string>): EntryRow[] {
+export function filterRows<T extends object>(rows: T[], filters: Record<string, string>): T[] {
   const pairs = Object.entries(filters).filter(([, value]) => value.trim() !== '')
   if (pairs.length === 0) {
     return rows
   }
   return rows.filter((row) =>
-    pairs.every(([field, value]) => String(row[field] ?? '').includes(value.trim())),
+    pairs.every(([field, value]) =>
+      String((row as Record<string, unknown>)[field] ?? '').includes(value.trim()),
+    ),
   )
 }
 
